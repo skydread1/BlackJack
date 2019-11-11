@@ -20,6 +20,7 @@ class Deck():
 	def __init__(self):
 		self.cards = []
 		self.new_deck()
+		self.shuffle()
 
 	def new_deck(self):
 		for suit in suits:
@@ -33,8 +34,15 @@ class Deck():
 			description = description + str(card) + '\n'
 		return description
 
-	def remove_card(self,card):
-		self.cards.remove(card)
+	def shuffle(self):
+		random.shuffle(self.cards)
+
+	def deal(self):
+		if len(self.cards) == 0:
+			self.new_deck()
+			self.shuffle()
+		card = self.cards.pop()
+		return card
 
 class Stack():
 
@@ -58,7 +66,7 @@ class Stack():
 
 
 class Hand():
-	
+
 	def __init__(self,name,cards):
 		self.name = name
 		self.cards = cards
@@ -80,21 +88,6 @@ class Hand():
 		self.value_hand = self.value_hand + values[card.value]
 		print(f"{self.name} hit {str(card)}")
 
-def random_card(deck):
-
-	#check if the deck is empty
-	if len(deck.cards) == 0:
-		#we take a new deck
-		deck.new_deck()
-
-	#we pick randomly a card in the deck
-	random_card = random.choice(deck.cards)
-
-	#we remove this car from the deck
-	deck.remove_card(random_card)
-
-	#we return the card
-	return random_card
 
 def check_burst(hand):
 	if hand.value_hand > 21:
@@ -111,7 +104,7 @@ def check_blackjack(hand):
 #the dealer has to draw until he reaches at least 17 or Burst, we return the value or burst
 def dealer_move(hand_dealer):
 	while hand_dealer.value_hand < 17:
-		hand_dealer.hit(random_card(deck))
+		hand_dealer.hit(deck.deal())
 		if check_burst(hand_dealer):
 			return "burst"
 
@@ -168,8 +161,8 @@ while replay_on:
 			break
 
 	#initialize hands
-	hand_dealer = Hand('Dealer', [random_card(deck)])
-	hand_player = Hand(player_name, [random_card(deck),random_card(deck)])
+	hand_dealer = Hand('Dealer', [deck.deal()])
+	hand_player = Hand(player_name, [deck.deal(),deck.deal()])
 
 	#display initial board
 	display_current_board(hand_dealer,hand_player,stack,bet)
@@ -184,7 +177,7 @@ while replay_on:
 
 		if decision == 'h':
 			#hit the player
-			hand_player.hit(random_card(deck))
+			hand_player.hit(deck.deal())
 			#check if burst
 			if check_burst(hand_player):
 				print(f"You just lost ${bet}")

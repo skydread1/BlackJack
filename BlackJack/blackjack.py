@@ -58,6 +58,7 @@ class Stack():
 
 
 class Hand():
+	
 	def __init__(self,name,cards):
 		self.name = name
 		self.cards = cards
@@ -85,7 +86,7 @@ def random_card(deck):
 	if len(deck.cards) == 0:
 		#we take a new deck
 		deck.new_deck()
-		
+
 	#we pick randomly a card in the deck
 	random_card = random.choice(deck.cards)
 

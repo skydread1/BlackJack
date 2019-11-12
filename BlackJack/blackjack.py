@@ -46,23 +46,22 @@ class Deck():
 
 class Stack():
 
-	def __init__(self,name,balance):
+	def __init__(self,name):
 		self.name =name
-		self.balance = balance
+		self.balance = 0
+		self.bet = 0
+		#if blackjack, winned win 3 times his bet instead of 2
+		self.blackjack_bonus = 0
 
 	def __str__(self):
 		return f"Current stack of {self.name} is worth ${self.balance}"
 
-	def debit(self, amount):
-		if self.balance < amount:
-			print(f"you only have ${self.balance} in your stack...\nThus you can't bet ${amount} ")
-		else:
-			self.balance = self.balance - amount;
-			print(f"you bet ${amount}")
+	def debit(self):
+		self.balance = self.balance - self.bet;
+			
 
-	def credit(self, amount):
-		self.balance = self.balance + amount;
-		print(f"you won ${amount}")
+	def credit(self):
+		self.balance = self.balance + self.bet*(2 + blackjack_bonus);
 
 
 class Hand():
@@ -78,15 +77,20 @@ class Hand():
 	def __str__(self):
 		description = "Hand of " + self.name + ":\n"
 		for card in self.cards:
-			description = description + str(card) + '\n'
+			description += str(card) + '\n'
+		description += "Value of the hand: " + self.value_hand + ":\n"
 		return description	
 
 	def hit(self,card):
 		#add the card to the hand
 		self.cards.append(card)
 		#update the value of the hand
-		self.value_hand = self.value_hand + values[card.value]
-		print(f"{self.name} hit {str(card)}")
+		#particular case for the Ace than can be 11 or 1
+		if card.value == "Ace" and (self.value_hand + 11) > 21:
+			self.value_hand = self.value_hand + 1
+		else:
+			self.value_hand = self.value_hand + values[card.value]
+			print(f"{self.name} hit {str(card)}")
 
 
 def check_burst(hand):
@@ -97,7 +101,6 @@ def check_burst(hand):
 
 def check_blackjack(hand):
 	if hand.value_hand == 21:
-		print(f"{hand.name} has BLACKJACK !")
 		return True
 	return False
 
@@ -110,13 +113,40 @@ def dealer_move(hand_dealer):
 
 	return hand_dealer.value_hand
 
-def display_current_board(hand_dealer,hand_player, stack, current_bet):
+def set_stack(stack):
+	while True:
+	try:
+		stack.balance = int(input("How big is your stack ? "))
+	except TypeError:
+		print("Please be sure to enter a number: ")
+		continue
+	else:
+		break
+
+def take_bet(stack):
+	while True:
+		try:
+			stack.bet = int(input("Your bet: "))
+			
+				continue
+		except TypeError:
+			print("Please be sure to enter a number: ")
+			continue
+		else:
+			if stack.bet > stack.balance:
+				print(f"you only have ${stack.balance} in your stack...\nThus you can't bet ${stack.bet} ")
+			else:
+				stack.debit(stack.bet)
+				break
+
+
+def display_current_board(hand_dealer,hand_player, stack):
 	print('\n\n\n')
 	print('--------------------------')
 	print(str(hand_dealer))
 	print('--------------------------\n')
 	print(str(stack))
-	print(f"Current bet: ${current_bet}")
+	print(f"Current bet: ${stack.bet}")
 	print('--------------------------\n')
 	print(str(hand_player))
 	print('--------------------------')
@@ -131,41 +161,23 @@ deck = Deck()
 
 #setup name and stack of player
 player_name = input("what is your name ? ")
+stack = Stack(player_name)
+set_stack(stack)
 
-while True:
-	try:
-		player_initial_stack = int(input("How big is your stack ? "))
-	except TypeError:
-		print("Please be sure to enter a number: ")
-		continue
-	else:
-		stack = Stack(player_name,player_initial_stack)
-		break
 #GAMBLING SESSION
 replay_on = True
 while replay_on:
 
 	#HAND (in the sense of round) 
 	#betting
-	while True:
-		try:
-			bet = int(input("Your bet: "))
-			if bet > stack.balance:
-				print(f"you only have ${stack.balance} in your stack...\nThus you can't bet ${bet} ")
-				continue
-		except TypeError:
-			print("Please be sure to enter a number: ")
-			continue
-		else:
-			stack.debit(bet)
-			break
+	take_bet(stack)
 
 	#initialize hands
 	hand_dealer = Hand('Dealer', [deck.deal()])
 	hand_player = Hand(player_name, [deck.deal(),deck.deal()])
 
 	#display initial board
-	display_current_board(hand_dealer,hand_player,stack,bet)
+	display_current_board(hand_dealer,hand_player,stack)
 
 	#hit or stay and result
 	round_on = True
@@ -180,31 +192,52 @@ while replay_on:
 			hand_player.hit(deck.deal())
 			#check if burst
 			if check_burst(hand_player):
-				print(f"You just lost ${bet}")
-				bet = 0
+				print(f"{hand_player.name} BURST")
+				print(f"{hand_player.name} just lost ${stack.bet}")
+				stack.bet = 0
 				round_on = False
 
 		else:
 			#the player stays so the dealer can now proceed
 			dealer_result = dealer_move(hand_dealer)
-			#the dealer burst or the player is closer form 21 than the dealer
+			#the dealer burst
 			if dealer_result == "burst":
-				stack.credit(bet*2) 
-				bet = 0
-			elif hand_player.value_hand > hand_dealer.value_hand:
-				#test if blackjack
-				if check_blackjack:
-					stack.credit(bet*3)
+				print("Dealer BURST")
+				if check_blackjack(hand_player):
+					stack.blackjack_bonus = 1
+					stack.credit()
+					print("BLACKJACK")
+					print(f"{hand_player.name} just won ${stack.bet*3}")
 				else:
-					stack.credit(bet*2) 
-					print("You beat the Dealer")
-					bet = 0
+					stack.credit() 
+					print(f"{hand_player.name} just won ${stack.bet*2}")
+					stack.bet = 0
+			#the player beats the dealer (no one bursted)
+			elif hand_player.value_hand > hand_dealer.value_hand:
+				print(f"{hand_player.name} beates the Dealer")
+				#test if blackjack
+				if check_blackjack(hand_player):
+					stack.blackjack_bonus = 1
+					stack.credit()
+					print("BLACKJACK")
+					print(f"{hand_player.name} just won ${stack.bet*3}")
+				else:
+					stack.credit() 
+					print(f"{hand_player.name} just won ${stack.bet*2}")
+					stack.bet = 0
+
+			#the dealer beats the player (no one bursted)
 			else:
-				print(f"The Dealer wins")
-				print(f"You just lost ${bet}")
+				print(f"The Dealer beats {hand_player.name}")
+				print(f"You just lost ${stack.bet}")
+
+			#clear the board
+			stack.bet = 0
+			stack.blackjack_bonus = 0
 			round_on = False
+
 		#display updated board
-		display_current_board(hand_dealer,hand_player,stack,bet)
+		display_current_board(hand_dealer,hand_player,stack)
 
 	#ask the player if he wanna play another hand
 	another_one = ''

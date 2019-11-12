@@ -5,6 +5,9 @@ suits = ('clubs','diamonds','hearts','spades')
 ranks = ('2','3','4','5','6','7','8','9','10','J','Q','K','Ace')
 values = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':10,'Q':10,'K':10,'Ace':11}
 
+#message ot display (ex, delaer Busts, player wins etc
+message = ''
+
 class Card():
 
 	def __init__(self,value,suit):
@@ -52,6 +55,7 @@ class Stack():
 		self.bet = 0
 		#if blackjack, winned win 3 times his bet instead of 2
 		self.blackjack_bonus = 0
+		self.push = 0
 
 	def __str__(self):
 		return f"Current stack of {self.name} is worth ${self.balance}"
@@ -61,7 +65,7 @@ class Stack():
 			
 
 	def credit(self):
-		self.balance = self.balance + self.bet*(2 + self.blackjack_bonus);
+		self.balance = self.balance + self.bet*(2 + self.blackjack_bonus-self.push);
 
 
 class Hand():
@@ -93,7 +97,7 @@ class Hand():
 			print(f"{self.name} hit {str(card)}")
 
 
-def check_burst(hand):
+def check_BUST(hand):
 	if hand.value_hand > 21:
 		return True
 	return False
@@ -103,12 +107,17 @@ def check_blackjack(hand):
 		return True
 	return False
 
-#the dealer has to draw until he reaches at least 17 or Burst, we return the value or burst
+def check_push(hand_dealer,hand_player):
+	if hand_player.value_hand == hand_dealer.value_hand:
+		return True
+	return False
+
+#the dealer has to draw until he reaches at least 17 or BUST, we return the value or BUST
 def dealer_move(hand_dealer):
 	while hand_dealer.value_hand < 17:
 		hand_dealer.hit(deck.deal())
-		if check_burst(hand_dealer):
-			return "burst"
+		if check_BUST(hand_dealer):
+			return "BUST"
 
 	return hand_dealer.value_hand
 
@@ -136,12 +145,89 @@ def take_bet(stack):
 				stack.debit()
 				break
 
+def win_bet(hand_dealer,hand_player,stack):
+	global message
+	if check_blackjack(hand_player):
+		stack.blackjack_bonus = 1
+		message = message + "BLACKJACK\n"
+		message = message + f"{hand_player.name} just won ${stack.bet*3}\n"
+	elif check_push(hand_dealer,hand_player):
+		stack.push = 1
+		message = message + "PUSH\n"
+		message = message + f"{hand_player.name} is refunded ${stack.bet}\n"
+	else:
+		message = message + f"{hand_player.name} just won ${stack.bet*2}\n"
+
+	stack.credit()
+
+def player_busts(hand_player,stack):
+	global message
+	message = message + f"{hand_player.name} BUSTS\n"
+	message = message + f"{hand_player.name} just lost ${stack.bet}\n"
+	stack.bet = 0
+
+def dealer_busts(hand_dealer, hand_player,stack):
+	global message
+	message = message + "Dealer BUSTS\n"
+	win_bet(hand_dealer,hand_player,stack)
+	stack.bet = 0
+
+def player_wins(hand_player,stack):
+	global message
+	message = message + f"{hand_player.name} beats the Dealer\n"
+	win_bet(hand_dealer,hand_player,stack)
+	stack.bet = 0
+
+def dealer_wins(hand_player,stack):
+	global message
+	message = message + f"The Dealer beats {hand_player.name}\n"
+	message = message + f"You just lost ${stack.bet}\n"
+	stack.bet = 0
+
+def push(hand_dealer, hand_player,stack):
+	global message
+	message = message + "PUSH"
+	message = message + f"You are refunded ${stack.bet}\n"
+	win_bet(hand_dealer,hand_player,stack)
+	stack.bet = 0
+
+def bankrupt(stack):
+	print("It appears that you don't have any more chips")
+	top_up = ''
+	while top_up != 'y' and top_up != 'n':
+		try:
+			top_up = input("Wanna top up ? (y/n)")
+		except:
+			print("Please be sure to enter a y or n: ")
+			continue
+		else:
+			break
+
+	if top_up == 'y':
+		set_stack(stack)
+
+	return top_up
+
+def play_again():
+	another_one = ''
+	while another_one != 'y' and another_one != 'n' and top_up != 'y':
+		try:
+			another_one = input("Do you wanna play another hand ? (y/n)")
+		except:
+			print("Please be sure to enter a y or n: ")
+			continue
+		else:
+			break
+
+	return another_one
 
 def display_current_board(hand_dealer,hand_player, stack):
+	global message
 	print('\n\n\n')
 	print('--------------------------')
 	print(str(hand_dealer))
 	print('--------------------------\n')
+	print(message + '\n')
 	print(str(stack))
 	print(f"Current bet: ${stack.bet}")
 	print('--------------------------\n')
@@ -187,48 +273,31 @@ while replay_on:
 		if decision == 'h':
 			#hit the player
 			hand_player.hit(deck.deal())
-			#check if burst
-			if check_burst(hand_player):
-				print(f"{hand_player.name} BURST")
-				print(f"{hand_player.name} just lost ${stack.bet}")
-				stack.bet = 0
+			#check if BUST
+			if check_BUST(hand_player):
+				player_busts(hand_player,stack)
 				round_on = False
 
 		else:
 			#the player stays so the dealer can now proceed
 			dealer_result = dealer_move(hand_dealer)
-			#the dealer burst
-			if dealer_result == "burst":
-				print("Dealer BURST")
-				if check_blackjack(hand_player):
-					stack.blackjack_bonus = 1
-					stack.credit()
-					print("BLACKJACK")
-					print(f"{hand_player.name} just won ${stack.bet*3}")
-				else:
-					stack.credit() 
-					print(f"{hand_player.name} just won ${stack.bet*2}")
-					stack.bet = 0
-			#the player beats the dealer (no one bursted)
+			#the dealer BUST
+			if dealer_result == "BUST":
+				dealer_busts(hand_dealer, hand_player,stack)
+
+			#player and dealer have same score
+			elif check_push(hand_dealer,hand_player):
+				push(hand_dealer, hand_player,stack)
+
+			#the player beats the dealer (no one BUSTed)
 			elif hand_player.value_hand > hand_dealer.value_hand:
-				print(f"{hand_player.name} beates the Dealer")
-				#test if blackjack
-				if check_blackjack(hand_player):
-					stack.blackjack_bonus = 1
-					stack.credit()
-					print("BLACKJACK")
-					print(f"{hand_player.name} just won ${stack.bet*3}")
-				else:
-					stack.credit() 
-					print(f"{hand_player.name} just won ${stack.bet*2}")
-					stack.bet = 0
+				player_wins(hand_player,stack)
 
-			#the dealer beats the player (no one bursted)
+			#the dealer beats the player (no one BUSTed)
 			else:
-				print(f"The Dealer beats {hand_player.name}")
-				print(f"You just lost ${stack.bet}")
+				dealer_wins(hand_player,stack)
 
-			#clear the board
+			#reset values
 			stack.bet = 0
 			stack.blackjack_bonus = 0
 			round_on = False
@@ -236,10 +305,21 @@ while replay_on:
 		#display updated board
 		display_current_board(hand_dealer,hand_player,stack)
 
+		#clear the board
+		message = ''
+
 	#ask the player if he wanna play another hand
 	another_one = ''
-	while another_one != 'y' and another_one != 'n':
-		another_one = input("Do you wanna play another hand ? (y/n)")
-	if another_one == 'n':
-		break
+	top_up = 'n'
+	#the player has no more chips
+	if stack.balance == 0:
+		#ask him if he wanna top up
+		top_up = bankrupt(stack)
+		if top_up == 'n':
+			replay_on = False
+	else:		
+		another_one = play_again()
+		if another_one == 'n':
+			replay_on = False
+
 print(f"Thank you {player_name} for playing with us")

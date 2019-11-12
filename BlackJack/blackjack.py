@@ -61,7 +61,7 @@ class Stack():
 			
 
 	def credit(self):
-		self.balance = self.balance + self.bet*(2 + blackjack_bonus);
+		self.balance = self.balance + self.bet*(2 + self.blackjack_bonus);
 
 
 class Hand():
@@ -77,8 +77,8 @@ class Hand():
 	def __str__(self):
 		description = "Hand of " + self.name + ":\n"
 		for card in self.cards:
-			description += str(card) + '\n'
-		description += "Value of the hand: " + self.value_hand + ":\n"
+			description = description + str(card) + '\n'
+		description = description + "Value of the hand: " + str(self.value_hand)+ "\n"
 		return description	
 
 	def hit(self,card):
@@ -95,7 +95,6 @@ class Hand():
 
 def check_burst(hand):
 	if hand.value_hand > 21:
-		print(f"{hand.name} BURST !")
 		return True
 	return False
 
@@ -115,20 +114,18 @@ def dealer_move(hand_dealer):
 
 def set_stack(stack):
 	while True:
-	try:
-		stack.balance = int(input("How big is your stack ? "))
-	except TypeError:
-		print("Please be sure to enter a number: ")
-		continue
-	else:
-		break
+		try:
+			stack.balance = int(input("How big is your stack ? "))
+		except TypeError:
+			print("Please be sure to enter a number: ")
+			continue
+		else:
+			break
 
 def take_bet(stack):
 	while True:
 		try:
 			stack.bet = int(input("Your bet: "))
-			
-				continue
 		except TypeError:
 			print("Please be sure to enter a number: ")
 			continue
@@ -136,7 +133,7 @@ def take_bet(stack):
 			if stack.bet > stack.balance:
 				print(f"you only have ${stack.balance} in your stack...\nThus you can't bet ${stack.bet} ")
 			else:
-				stack.debit(stack.bet)
+				stack.debit()
 				break
 
 
